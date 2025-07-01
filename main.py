@@ -432,20 +432,80 @@ class Dashboard:
             logger.error(f"Error en gráfico de anatomía de zona crítica: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Anatomía de Zona Crítica.")
             
     def _plot_risk_contribution_sunburst(self, kpi_df: pd.DataFrame):
-        st.markdown("**Análisis:** Desglosa el `Puntaje de Riesgo Integrado` de una zona en sus componentes de modelo subyacentes.")
+        """
+        [SME VISUALIZATION] Plots a Risk Diagnostics sunburst chart to dissect the nature of a zone's risk.
+        """
+        st.markdown("""
+        **Análisis:** Este gráfico de diagnóstico desglosa el `Puntaje de Riesgo Integrado` para entender su naturaleza. Permite responder a la pregunta: *"¿Este riesgo es predecible y se basa en patrones históricos, o es una amenaza compleja y novedosa detectada por la IA?"*
+
+        **Cómo Interpretar:**
+        - **Anillo Azul (Base):** Representa el riesgo convencional basado en datos históricos y estadísticos. Un segmento azul grande significa que el riesgo es **predecible**.
+        - **Anillo Rojo/Naranja (Avanzado):** Representa riesgos complejos detectados por modelos de IA (proximidad, tensión del sistema, etc.). Un segmento rojo grande significa que la amenaza es **novedosa o atípica** y requiere una respuesta más matizada.
+        """)
         try:
-            zones = kpi_df.nlargest(5,'Integrated_Risk_Score')['Zone'].tolist()
-            if not zones: st.info("No hay zonas de alto riesgo para analizar."); return
-            zone = st.selectbox("Seleccione una Zona de Alto Riesgo para Análisis Detallado:",options=zones)
+            zones = kpi_df.nlargest(5, 'Integrated_Risk_Score')['Zone'].tolist()
+            if not zones:
+                st.info("No hay zonas de alto riesgo para analizar."); return
+                
+            zone = st.selectbox("Seleccione una Zona de Alto Riesgo para Diagnóstico:", options=zones, key="sunburst_zone_select")
             if not zone: return
-            z_data,weights = kpi_df.loc[kpi_df['Zone']==zone].iloc[0],self.config.get('model_params',{}).get('advanced_model_weights',{})
-            data = {'ids':['IR','BE','AM','STGP','HMM','GNN','GT'],'labels':[f"Total: {z_data.get('Integrated_Risk_Score',0):.2f}",'Base','Avanzado','STGP','HMM','GNN','T. Juegos'],'parents':['','IR','IR','AM','AM','AM','AM'],
-                    'values':[z_data.get('Integrated_Risk_Score',0),weights.get('base_ensemble',0)*z_data.get('Ensemble Risk Score',0),(weights.get('stgp',0)*z_data.get('STGP_Risk',0)+weights.get('hmm',0)*z_data.get('HMM_State_Risk',0)+weights.get('gnn',0)*z_data.get('GNN_Structural_Risk',0)+weights.get('game_theory',0)*z_data.get('Game_Theory_Tension',0)),weights.get('stgp',0)*z_data.get('STGP_Risk',0),weights.get('hmm',0)*z_data.get('HMM_State_Risk',0),weights.get('gnn',0)*z_data.get('GNN_Structural_Risk',0),weights.get('game_theory',0)*z_data.get('Game_Theory_Tension',0)]}
-            fig = go.Figure(go.Sunburst(ids=data['ids'],labels=data['labels'],parents=data['parents'],values=data['values'],branchvalues="total",hovertemplate='<b>%{label}</b><br>Contribución: %{value:.3f}<extra></extra>'))
-            fig.update_layout(margin=dict(t=20,l=0,r=0,b=0),title_text=f"Desglose de Riesgo para la Zona: {zone}",title_x=0.5,height=450)
-            st.plotly_chart(fig,use_container_width=True)
+
+            z_data = kpi_df.loc[kpi_df['Zone'] == zone].iloc[0]
+            weights = self.config.get('model_params', {}).get('advanced_model_weights', {})
+            
+            total_risk = z_data.get('Integrated_Risk_Score', 0)
+            if total_risk < 1e-9: # Avoid division by zero
+                st.info(f"La zona {zone} no presenta un riesgo significativo para desglosar.")
+                return
+
+            base_value = weights.get('base_ensemble', 0) * z_data.get('Ensemble Risk Score', 0)
+            stgp_value = weights.get('stgp', 0) * z_data.get('STGP_Risk', 0)
+            hmm_value = weights.get('hmm', 0) * z_data.get('HMM_State_Risk', 0)
+            gnn_value = weights.get('gnn', 0) * z_data.get('GNN_Structural_Risk', 0)
+            gt_value = weights.get('game_theory', 0) * z_data.get('Game_Theory_Tension', 0)
+            advanced_value = stgp_value + hmm_value + gnn_value + gt_value
+
+            data = {
+                'ids': ['Total', 'Base Ensemble', 'Advanced Models', 'STGP Risk', 'HMM State', 'GNN Structure', 'Game Tension'],
+                'labels': ['Puntaje Total', 'Riesgo Base', 'Riesgo Avanzado', 'Proximidad', 'Patrón Anómalo', 'Estructural', 'Tensión Sistémica'],
+                'parents': ['', 'Total', 'Total', 'Advanced Models', 'Advanced Models', 'Advanced Models', 'Advanced Models'],
+                'values': [total_risk, base_value, advanced_value, stgp_value, hmm_value, gnn_value, gt_value],
+                'customdata': [100, (base_value/total_risk)*100, (advanced_value/total_risk)*100, (stgp_value/total_risk)*100, (hmm_value/total_risk)*100, (gnn_value/total_risk)*100, (gt_value/total_risk)*100],
+                'marker': {
+                    'colors': [
+                        '#E0E0E0',  # Total (neutral)
+                        '#1E90FF',  # Base Ensemble (Predictable Risk)
+                        '#D32F2F',  # Advanced Models (Complex Risk)
+                        '#FF6347',  # STGP
+                        '#FF7F50',  # HMM
+                        '#FF8C00',  # GNN
+                        '#FFA500'   # Game Theory
+                    ]
+                }
+            }
+
+            fig = go.Figure(go.Sunburst(
+                ids=data['ids'], 
+                labels=data['labels'], 
+                parents=data['parents'], 
+                values=data['values'],
+                branchvalues="total",
+                marker=data['marker'],
+                customdata=data['customdata'],
+                hovertemplate='<b>%{label}</b><br>Contribución al Riesgo: %{value:.3f}<br>Porcentaje del Total: %{customdata:.1f}%<extra></extra>',
+                insidetextorientation='radial'
+            ))
+            
+            fig.update_layout(
+                margin=dict(t=20, l=0, r=0, b=0),
+                title_text=f"Diagnóstico de Riesgo para la Zona: {zone}",
+                title_x=0.5,
+                height=450
+            )
+            st.plotly_chart(fig, use_container_width=True)
         except Exception as e:
-            logger.error(f"Error en gráfico sunburst de contribución: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Contribución de Riesgo.")
+            logger.error(f"Error en gráfico sunburst de contribución: {e}", exc_info=True)
+            st.warning("No se pudo mostrar el gráfico de Contribución de Riesgo.")
             
     def _plot_forecast_with_uncertainty(self):
         st.markdown("**Análisis:** Proyecta el riesgo durante 72 horas. El área sombreada es el intervalo de confianza del 95%.")
