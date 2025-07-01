@@ -386,7 +386,9 @@ class Dashboard:
             st.plotly_chart(fig,use_container_width=True)
         except Exception as e:
             logger.error(f"Error en gráfico de oportunidad de asignación: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Oportunidad de Asignación.")
-        def _plot_risk_momentum(self, kpi_df: pd.DataFrame):
+# --- START: INSERT THE NEW METHOD HERE (around line 543) ---
+
+    def _plot_risk_momentum(self, kpi_df: pd.DataFrame):
         """
         [SME VISUALIZATION] Plots the change in risk from the previous period to the current one.
         This "momentum" chart quickly identifies zones that are heating up or cooling down.
@@ -455,6 +457,8 @@ class Dashboard:
         except Exception as e:
             logger.error(f"Error al graficar el momentum del riesgo: {e}", exc_info=True)
             st.warning("No se pudo mostrar el gráfico de Tendencia del Riesgo.")
+
+# --- END: NEW METHOD INSERTED ---
             
     def _plot_critical_zone_anatomy(self, kpi_df: pd.DataFrame):
         st.markdown("**Analysis:** This chart dissects the *composition* of risk for the most critical zones. Each horizontal line represents a zone, ordered by total risk. The **icon and its position** show the magnitude of each primary risk driver, allowing for direct comparison. The **total integrated risk score** is annotated on the right for context.")
