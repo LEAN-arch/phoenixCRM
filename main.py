@@ -494,7 +494,13 @@ class Dashboard:
 
     def _render_prediction_engine(self):
         with st.expander("II. El Motor de Predicción: Un Análisis Profundo Multi-modelo", expanded=False):
-            st.info("#### Principio Fundamental: Diferentes preguntas requieren diferentes herramientas. Ningún modelo único puede capturar todas las facetas del riesgo urbano.", icon="💡")
+            st.info("#### Principio Fundamental: Diferentes preguntas requieren diferentes herramientas
+
+En el análisis y gestión del riesgo urbano, resulta epistemológicamente incorrecto asumir que un único modelo o enfoque puede capturar la totalidad de variables, dinámicas y escalas involucradas. El entorno urbano constituye un sistema complejo, caracterizado por interacciones no lineales, retroalimentaciones múltiples y una alta sensibilidad al contexto. Por ende, diferentes tipos de preguntas —ya sean diagnósticas, predictivas o prescriptivas— exigen herramientas metodológicas diferenciadas, tanto en su estructura como en su propósito analítico.
+
+Los algoritmos empleados en este ámbito operan bajo principios de actualización continua y aprendizaje automático. Esta aplicación utiliza sistemas adaptativos que se nutren de flujos de datos en tiempo real, permitiendo refinar sus estimaciones y mejorar la capacidad predictiva en horizontes temporales inmediatos. Esta característica la convierte en un instrumento valiosos, inherentemente dependientes de la calidad, frecuencia y pertinencia de los datos suministrados.
+
+Insistir en la aplicación de modelos únicos, sin considerar la diversidad de fenómenos urbanos ni la naturaleza de las preguntas planteadas, conlleva un riesgo metodológico significativo. La integridad científica y la eficacia operativa en la gestión del riesgo urbano exigen una arquitectura analítica plural, capaz de articular de manera coherente modelos estadísticos, computacionales y cualitativos, según la naturaleza y propósito de cada análisis. Esta capacidad de integración metodológica es precisamente una de las características distintivas de RedShield AI, cuyo enfoque permite adaptar las herramientas analíticas al contexto específico del riesgo, promoviendo decisiones informadas y oportunas en entornos urbanos complejos.", icon="💡")
             st.markdown("---")
             st.markdown("#### **A. Modelos Estocásticos y Estadísticos (El 'Cuándo')**")
             st.markdown("""
