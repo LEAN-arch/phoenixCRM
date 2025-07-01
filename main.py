@@ -160,19 +160,19 @@ class Dashboard:
         """Renderiza la vista principal de mando operativo."""
         self._render_system_status_bar()
         
-        with st.expander("Mostrar Detalles de Tendencia del Sistema"):
+        with st.expander("Mostrar Detalles de Tendencia en el Sistema de Urgencias"):
             self._render_sparkline_details()
         
         st.divider()
         col1, col2 = st.columns([3, 2])
         with col1:
-            st.subheader("Mapa de Operaciones en Vivo")
+            st.subheader("Mapa de Operaciones en Tiempo Real")
             map_data = self._prepare_map_data(kpi_df=st.session_state.kpi_df, _zones_gdf=self.dm.zones_gdf)
             if map_data is not None:
                 map_object = self._render_dynamic_map(map_gdf=map_data, incidents=st.session_state.current_incidents, _ambulances=self.dm.ambulances)
                 if map_object: st_folium(map_object, use_container_width=True, height=600)
         with col2:
-            st.subheader("Soporte a la Decisión")
+            st.subheader("Soporte a la Toma de Decisiones")
             self._plot_system_pressure_gauge()
             self._plot_resource_to_risk_adequacy()
             
@@ -183,7 +183,7 @@ class Dashboard:
     def _create_status_metric(label, value, trend, color): return f'<div style="flex:1;background-color:{color};padding:10px;text-align:center;color:white;border-right:1px solid #fff4;"><div style="font-size:1.5rem;font-weight:bold;">{value} {trend}</div><div style="font-size:0.8rem;">{label}</div></div>'
 
     def _render_system_status_bar(self):
-        st.subheader("Estado de Salud del Sistema")
+        st.subheader("Estado de 'Salud' de la Respuesta en el Sistema")
         kpi_df, spark_data = st.session_state.kpi_df, st.session_state.sparkline_data
         if kpi_df.empty or not spark_data: st.info("Estado del sistema no disponible..."); return
         try:
@@ -267,7 +267,7 @@ class Dashboard:
             logger.error(f"Error al renderizar gráficos de chispa: {e}", exc_info=True); st.warning("No se pudieron mostrar los detalles de tendencia.")
 
     def _render_key_risk_indicators(self, kpi_df: pd.DataFrame):
-        st.subheader("Perfiles de Riesgo Clave")
+        st.subheader("Perfiles de Riesgos Clave")
         st.markdown("Un resumen visual de las zonas de mayor riesgo, mostrando la magnitud total del riesgo y la composición de sus impulsores clave.")
         try:
             req = ['Zone','Integrated_Risk_Score','Violence Clustering Score','Medical Surge Score','Spatial Spillover Risk']
@@ -310,7 +310,7 @@ class Dashboard:
         st.divider()
         st.subheader("Visualizaciones Analíticas Avanzadas")
         if not kpi_df.empty:
-            tab_titles = ["📍 Vista Estratégica", "🎯 Oportunidad de Asignación", "⏱️ Momento del Riesgo", "🧬 Anatomía de Zona Crítica", "🧩 Análisis Detallado de Zona", "🔭 Pronóstico a 72 Horas"]
+            tab_titles = ["📍 Vista Estratégica", "🎯 Oportunidades de Asignación", "⏱️ Tendencias del Riesgo", "🧬 Anatomía de las Zonas Crítica", "🧩 Análisis Detallado de Zonas", "🔭 Pronóstico a 72 Horas"]
             tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(tab_titles)
             with tab1: self._plot_vulnerability_quadrant(kpi_df)
             with tab2: self._plot_allocation_opportunity(kpi_df, st.session_state.allocations)
