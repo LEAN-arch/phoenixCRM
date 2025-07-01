@@ -388,47 +388,63 @@ class Dashboard:
             logger.error(f"Error en gráfico de oportunidad de asignación: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Oportunidad de Asignación.")
 # --- START: INSERT THE NEW METHOD HERE (around line 543) ---
 
+# --- REPLACE the old _plot_risk_momentum with this NEW, more robust version ---
+
     def _plot_risk_momentum(self, kpi_df: pd.DataFrame):
         """
         [SME VISUALIZATION] Plots the change in risk from the previous period to the current one.
         This "momentum" chart quickly identifies zones that are heating up or cooling down.
+        Falls back to a synthetic past state if no historical data is loaded.
         """
         st.markdown("**Análisis:** Este gráfico muestra el 'momentum' del riesgo—qué tan rápido está cambiando el riesgo para cada zona. Las barras rojas indican zonas donde el riesgo está aumentando ('calentándose'), mientras que las barras verdes muestran zonas donde el riesgo está disminuyendo ('enfriándose'). Esto es crucial para la asignación proactiva de recursos.")
+        
         try:
-            # We need at least one historical data point to calculate momentum.
+            # --- START: NEW FALLBACK LOGIC ---
             if 'historical_data' not in st.session_state or not st.session_state.historical_data:
-                st.info("No hay datos históricos disponibles para calcular la tendencia del riesgo. Por favor, cargue un archivo de historial.")
-                return
-
-            # To get a 'previous' state, we run the KPI generation on the last historical snapshot.
-            # We must use the core `generate_kpis` method, not the one with sparklines.
-            last_historical_point = st.session_state.historical_data[-1]
-            historical_incidents = last_historical_point.get('incidents', [])
-            
-            # Note: A more advanced implementation might also retrieve historical EnvFactors.
-            # For this visualization, using current factors is a reasonable proxy for context.
-            prev_kpi_df = self.engine.generate_kpis(
-                st.session_state.historical_data[:-1], # History before the last point
-                st.session_state.env_factors,          # Current environmental context
-                historical_incidents                   # Incidents from the last historical point
-            )
+                logger.info("No historical data found for momentum plot. Generating a synthetic past state.")
+                st.markdown("> *Nota: Como no se cargaron datos históricos, esta tendencia se calcula en comparación con un estado anterior simulado.*")
+                
+                # Create a neutral past environment for simulation
+                default_env = EnvFactors(
+                    is_holiday=False, weather="Despejado", traffic_level=1.0, major_event=False,
+                    population_density=st.session_state.avg_pop_density, air_quality_index=50.0,
+                    heatwave_alert=False, day_type='Entre Semana', time_of_day='Mediodía',
+                    public_event_type='Ninguno', hospital_divert_status=0.0,
+                    police_activity='Normal', school_in_session=True
+                )
+                
+                # Generate a plausible number of past incidents (e.g., 5)
+                past_incidents = self.dm._generate_synthetic_incidents(default_env, override_count=5)
+                
+                # Calculate the KPI for this synthetic past state
+                # Pass empty list for history and the synthetic incidents as "current" for that past moment
+                prev_kpi_df = self.engine.generate_kpis([], default_env, past_incidents)
+            else:
+                # --- This is the ORIGINAL logic for when real history exists ---
+                last_historical_point = st.session_state.historical_data[-1]
+                historical_incidents = last_historical_point.get('incidents', [])
+                
+                prev_kpi_df = self.engine.generate_kpis(
+                    st.session_state.historical_data[:-1],
+                    st.session_state.env_factors,
+                    historical_incidents
+                )
+            # --- END: NEW FALLBACK LOGIC ---
 
             if prev_kpi_df.empty:
-                st.info("No se pudo calcular el estado de riesgo anterior a partir de los datos históricos.")
+                st.info("No se pudo calcular un estado de riesgo de referencia (real o sintético).")
                 return
 
-            # Prepare data for comparison
+            # --- The rest of the function remains the same ---
             df = kpi_df[['Zone', 'Integrated_Risk_Score']].copy()
             prev_risk = prev_kpi_df.set_index('Zone')['Integrated_Risk_Score']
             df = df.join(prev_risk.rename('Prev_Risk_Score'), on='Zone')
-            df.fillna(0, inplace=True) # Fill zones that might not have existed before
+            df.fillna(0, inplace=True)
 
-            # Calculate momentum and assign color
             df['momentum'] = df['Integrated_Risk_Score'] - df['Prev_Risk_Score']
             df['color'] = df['momentum'].apply(lambda m: '#D32F2F' if m > 0.001 else '#388E3C')
             df = df.sort_values('momentum', ascending=True)
 
-            # Create the plot
             fig = go.Figure()
             fig.add_trace(go.Bar(
                 x=df['momentum'],
