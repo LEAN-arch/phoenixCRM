@@ -155,6 +155,7 @@ class Dashboard:
             st.session_state.update({'kpi_df':pd.DataFrame(),'forecast_df':pd.DataFrame(),'allocations':{},'sparkline_data':{}})
 
     # --- PESTAÑA 1: MANDO OPERATIVO ---
+    
     def _render_operational_command_tab(self):
         """Renderiza la vista principal de mando operativo."""
         self._render_system_status_bar()
@@ -298,6 +299,7 @@ class Dashboard:
                         fig.update_layout(height=80,margin=dict(l=0,r=0,t=20,b=0),paper_bgcolor='rgba(0,0,0,0)'); st.plotly_chart(fig,use_container_width=True)
         except Exception as e:
             logger.error(f"Error al renderizar Indicadores Clave de Riesgo: {e}", exc_info=True); st.warning("No se pudieron mostrar los Perfiles de Riesgo Clave.")
+
     # --- PESTAÑA 2: ANÁLISIS DE KPIs ---
     def _render_kpi_deep_dive_tab(self):
         st.subheader("Matriz Comprensiva de Indicadores de Riesgo")
@@ -394,7 +396,7 @@ class Dashboard:
             plot_data = risk_now.join(risk_6hr_ago.rename(columns={'Integrated_Risk_Score': 'Risk_6hr_ago'})).sort_values('Integrated_Risk_Score', ascending=False).reset_index()
             plot_data['Momentum'] = plot_data['Integrated_Risk_Score'] - plot_data['Risk_6hr_ago']
             fig = go.Figure()
-            INCREASING_COLOR, DECREASING_COLOR = "#FF4136", "#0074D9"
+            INCREASING_COLOR, DECREASING_COLOR = "#D32F2F", "#1976D2"
             for i, row in plot_data.iterrows():
                 arrow_color = INCREASING_COLOR if row['Momentum'] > 0 else DECREASING_COLOR
                 fig.add_shape(type='line',x0=row['Risk_6hr_ago'],y0=row['Zone'],x1=row['Integrated_Risk_Score'],y1=row['Zone'],line=dict(color='#B0BEC5',width=2))
@@ -407,9 +409,9 @@ class Dashboard:
             st.plotly_chart(fig,use_container_width=True)
         except Exception as e:
             logger.error(f"Error en gráfico de momento de riesgo: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Momento del Riesgo.")
-
+            
     def _plot_critical_zone_anatomy(self, kpi_df: pd.DataFrame):
-        st.markdown("**Análisis:** Este gráfico disecciona la *composición* del riesgo. Cada línea es una zona, ordenada por riesgo total. El **ícono y su posición** muestran la magnitud de cada impulsor de riesgo (👊 Violencia, 🚗 Accidente, ✚ Médico), permitiendo una comparación directa. El **puntaje total de riesgo** se anota a la derecha para dar contexto.")
+        st.markdown("**Análisis:** Este gráfico disecciona la *composición* del riesgo. Cada línea es una zona, ordenada por riesgo total. El **ícono y su posición** muestran la magnitud de cada impulsor de riesgo, permitiendo una comparación directa. El **puntaje total de riesgo** se anota a la derecha para dar contexto.")
         try:
             st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">',unsafe_allow_html=True)
             risk_cols = ['Violence Clustering Score','Accident Clustering Score','Medical Surge Score']
@@ -476,7 +478,7 @@ class Dashboard:
         self._render_incident_specific_weighting()
         self._render_kpi_glossary()
 
-def _render_architecture_philosophy(self):
+    def _render_architecture_philosophy(self):
         with st.expander("I. Filosofía Arquitectónica: De la Predicción a la Prescripción", expanded=True):
             st.markdown("""
             El objetivo fundamental de RedShield AI: Phoenix v4.0 es diseñar un cambio de paradigma en la respuesta a emergencias: de un **modelo reactivo** tradicional (despachar unidades después de que ocurra un incidente) a una **postura proactiva y prescriptiva** (anticipar dónde es probable que surjan los incidentes y posicionar recursos de forma prescriptiva para minimizar los tiempos de respuesta y maximizar el impacto).
@@ -596,7 +598,7 @@ def _render_architecture_philosophy(self):
                 - **Objetivo:** Modelar y predecir matemáticamente los tiempos de espera, la congestión y la probabilidad de saturación del sistema (p. ej., en una sala de emergencias de un hospital).
                 - **Relevancia General en el Sistema:** La teoría de colas proporciona una base teórica robusta para el `Índice_Suficiencia_Recursos` e informa las decisiones de enrutamiento. En lugar de una simple penalización por un hospital ocupado, permite al sistema calcular el *retraso esperado real*, lo que conduce a asignaciones más inteligentes.
                 - **La Pregunta que Responde:** "Si enviamos otra ambulancia al Hospital X, ¿cuál es la probabilidad de que tenga que esperar más de 15 minutos para entregar al paciente, dada su carga actual de pacientes y nuestra tasa de llegada prevista de nuevos incidentes?"
-                - **Formulación Matemática (Modelo M/M/c):** Para un sistema con `c` servidores (p. ej., camas de urgencias), una tasa de llegada de Poisson `λ` (de nuestras predicciones de incidentes), y una tasa de servicio exponencial `μ`, la probabilidad de que un paciente que llega tenga que esperar se da por la fórmula de Erlang-C:
+                - **Formulación Matemática (Modelo M/M/c):** Para un sistema con `c` servidores (p. ej., camas de urgencias), una tasa de llegada de Poisson `λ`, y una tasa de servicio exponencial `μ` por servidor, la probabilidad de que un paciente que llega tenga que esperar se da por la **Fórmula de Erlang-C**.
             """)
             st.markdown(r'''$$ P_{\text{wait}} = C(c, \lambda/\mu) = \frac{\frac{(\lambda/\mu)^c}{c!}}{ \left(\sum_{k=0}^{c-1} \frac{(\lambda/\mu)^k}{k!}\right) + \frac{(\lambda/\mu)^c}{c! (1 - \frac{\lambda}{c\mu})}} $$''', unsafe_allow_html=True)
             st.markdown("""
@@ -624,54 +626,14 @@ def _render_architecture_philosophy(self):
     def _render_kpi_glossary(self):
         with st.expander("V. Glosario de Indicadores Clave de Desempeño (KPI)", expanded=False):
             kpi_defs = {
-                "Puntaje de Riesgo Integrado": {
-                    "description": "La métrica de riesgo final y sintetizada, usada para todas las decisiones operativas. Es la única fuente de verdad para priorizar zonas y asignar recursos.",
-                    "question": "¿Qué zona necesita más mi atención ahora mismo, considerando todos los factores?",
-                    "relevance": "Impulsa las recomendaciones finales de asignación de recursos y proporciona el ranking primario de zonas por nivel de amenaza general.",
-                    "formula": r'''R_{\text{int}} = \sum_{i} w_i \cdot \text{ComponenteRiesgo}_i'''
-                },
-                "Puntaje de Riesgo de Ensamble": {
-                    "description": "Un puntaje combinado de modelos estadísticos fundacionales que representa el riesgo base y estable para una zona.",
-                    "question": "¿Cuál es el nivel 'normal' o esperado de riesgo para esta zona, dado el contexto actual (ej. clima, día)?",
-                    "relevance": "Proporciona una evaluación de riesgo robusta y menos volátil, previniendo reacciones exageradas a eventos menores y transitorios.",
-                    "formula": r'''R_{\text{ens}} = \sum_{k=1}^{K} w_k \cdot \text{normalizar}(M_k)'''
-                },
-                "Riesgo Estructural (GNN)": {
-                    "description": "Una medida de la vulnerabilidad intrínseca y a largo plazo de una zona, basada en su posición y conectividad dentro de las redes viales y sociales de la ciudad.",
-                    "question": "¿Es esta zona inherentemente peligrosa, independientemente de eventos recientes?",
-                    "relevance": "Identifica áreas crónicamente en riesgo que pueden requerir intervención estratégica a largo plazo (ej. vigilancia comunitaria, cambios de infraestructura).",
-                    "formula": r'''\text{PageRank}(z_i) = \frac{1-d}{N} + d \sum_{z_j \in N(z_i)} \frac{\text{PR}(z_j)}{|N(z_j)|}'''
-                },
-                "Riesgo Espaciotemporal (STGP)": {
-                    "description": "Un puntaje que representa el riesgo que irradia de incidentes graves recientes, decayendo sobre el espacio y el tiempo.",
-                    "question": "¿Cuánta 'presión de riesgo' ejerce un incidente importante en una zona vecina sobre esta?",
-                    "relevance": "Captura la correlación espaciotemporal del riesgo, asegurando que la proximidad al peligro se tenga en cuenta.",
-                    "formula": r'''f(s, t) \sim \mathcal{GP}(m(s, t), k((s, t), (s', t')))'''
-                },
-                "Tensión (Teoría de Juegos)": {
-                    "description": "Una métrica que cuantifica la contribución de una zona a la competencia por recursos a nivel de sistema.",
-                    "question": "¿Qué zonas están causando la mayor tensión y competencia por nuestros recursos limitados?",
-                    "relevance": "Identifica los principales impulsores de la tensión del sistema, ayudando a priorizar áreas donde la falta de recursos tendría las consecuencias más graves.",
-                    "formula": r'''\text{Tensión}_i = \text{Riesgo}_i \times \text{IncidentesEsperados}_i'''
-                },
-                "Sensibilidad al Caos": {
-                    "description": "Una medida de la volatilidad y fragilidad de todo el sistema, basada en la Teoría del Caos.",
-                    "question": "¿Está la ciudad operando normalmente, o está en un estado 'frágil' donde un pequeño incidente podría desencadenar una crisis mayor?",
-                    "relevance": "Actúa como una 'alarma de inestabilidad' crítica. Un puntaje alto advierte que todo el sistema es volátil.",
-                    "formula": r'''\lambda \approx \frac{1}{t} \ln \frac{\|\delta(t)\|}{\|\delta(0)\|}'''
-                },
-                "Puntaje de Anomalía": {
-                    "description": "Mide la 'extrañeza' del patrón actual de incidentes en comparación con la norma histórica.",
-                    "question": "¿Estamos viendo tipos de incidentes inusuales o incidentes normales en lugares muy inusuales?",
-                    "relevance": "Detecta amenazas novedosas que las métricas simples basadas en volumen pasarían por alto. Un puntaje alto es una señal clara de que 'hoy no es un día normal'.",
-                    "formula": r'''D_{KL}(P || Q) = \sum_{z} P(z) \log\frac{P(z)}{Q(z)}'''
-                },
-                "Índice de Suficiencia de Recursos": {
-                    "description": "Una relación a nivel de sistema entre las unidades disponibles y la demanda total esperada, penalizada por la tensión hospitalaria y el tráfico.",
-                    "question": "En general, ¿tiene mi sistema suficientes recursos para manejar la demanda prevista para la próxima hora?",
-                    "relevance": "Proporciona una métrica de alto nivel para que el mando entienda la capacidad general del sistema.",
-                    "formula": r'''\text{RAI} = \frac{\text{UnidadesDisponibles}}{\sum E_i \times (1 + k_{\text{tensión}})}'''
-                },
+                "Puntaje de Riesgo Integrado": {"description": "La métrica de riesgo final y sintetizada, usada para todas las decisiones operativas. Es la única fuente de verdad para priorizar zonas y asignar recursos.", "question": "¿Qué zona necesita más mi atención ahora mismo, considerando todos los factores?", "relevance": "Impulsa las recomendaciones finales de asignación de recursos y proporciona el ranking primario de zonas por nivel de amenaza general.", "formula": r'''R_{\text{int}} = \sum_{i} w_i \cdot \text{ComponenteRiesgo}_i'''},
+                "Puntaje de Riesgo de Ensamble": {"description": "Un puntaje combinado de modelos estadísticos fundacionales que representa el riesgo base y estable para una zona.", "question": "¿Cuál es el nivel 'normal' o esperado de riesgo para esta zona, dado el contexto actual (ej. clima, día)?", "relevance": "Proporciona una evaluación de riesgo robusta y menos volátil, previniendo reacciones exageradas a eventos menores y transitorios.", "formula": r'''R_{\text{ens}} = \sum_{k=1}^{K} w_k \cdot \text{normalizar}(M_k)'''},
+                "Riesgo Estructural (GNN)": {"description": "Una medida de la vulnerabilidad intrínseca y a largo plazo de una zona, basada en su posición y conectividad dentro de las redes viales y sociales de la ciudad.", "question": "¿Es esta zona inherentemente peligrosa, independientemente de eventos recientes?", "relevance": "Identifica áreas crónicamente en riesgo que pueden requerir intervención estratégica a largo plazo (ej. vigilancia comunitaria, cambios de infraestructura).", "formula": r'''\text{PageRank}(z_i) = \frac{1-d}{N} + d \sum_{z_j \in N(z_i)} \frac{\text{PR}(z_j)}{|N(z_j)|}'''},
+                "Riesgo Espaciotemporal (STGP)": {"description": "Un puntaje que representa el riesgo que irradia de incidentes graves recientes, decayendo sobre el espacio y el tiempo.", "question": "¿Cuánta 'presión de riesgo' ejerce un incidente importante en una zona vecina sobre esta?", "relevance": "Captura la correlación espaciotemporal del riesgo, asegurando que la proximidad al peligro se tenga en cuenta.", "formula": r'''f(s, t) \sim \mathcal{GP}(m(s, t), k((s, t), (s', t')))'''},
+                "Tensión (Teoría de Juegos)": {"description": "Una métrica que cuantifica la contribución de una zona a la competencia por recursos a nivel de sistema.", "question": "¿Qué zonas están causando la mayor tensión y competencia por nuestros recursos limitados?", "relevance": "Identifica los principales impulsores de la tensión del sistema, ayudando a priorizar áreas donde la falta de recursos tendría las consecuencias más graves.", "formula": r'''\text{Tensión}_i = \text{Riesgo}_i \times \text{IncidentesEsperados}_i'''},
+                "Sensibilidad al Caos": {"description": "Una medida de la volatilidad y fragilidad de todo el sistema, basada en la Teoría del Caos.", "question": "¿Está la ciudad operando normalmente, o está en un estado 'frágil' donde un pequeño incidente podría desencadenar una crisis mayor?", "relevance": "Actúa como una 'alarma de inestabilidad' crítica. Un puntaje alto advierte que todo el sistema es volátil.", "formula": r'''\lambda \approx \frac{1}{t} \ln \frac{\|\delta(t)\|}{\|\delta(0)\|}'''},
+                "Puntaje de Anomalía": {"description": "Mide la 'extrañeza' del patrón actual de incidentes en comparación con la norma histórica.", "question": "¿Estamos viendo tipos de incidentes inusuales o incidentes normales en lugares muy inusuales?", "relevance": "Detecta amenazas novedosas que las métricas simples basadas en volumen pasarían por alto. Un puntaje alto es una señal clara de que 'hoy no es un día normal'.", "formula": r'''D_{KL}(P || Q) = \sum_{z} P(z) \log\frac{P(z)}{Q(z)}'''},
+                "Índice de Suficiencia de Recursos": {"description": "Una relación a nivel de sistema entre las unidades disponibles y la demanda total esperada, penalizada por la tensión hospitalaria y el tráfico.", "question": "En general, ¿tiene mi sistema suficientes recursos para manejar la demanda prevista para la próxima hora?", "relevance": "Proporciona una métrica de alto nivel para que el mando entienda la capacidad general del sistema.", "formula": r'''\text{RAI} = \frac{\text{UnidadesDisponibles}}{\sum E_i \times (1 + k_{\text{tensión}})}'''},
             }
             for kpi, content in kpi_defs.items():
                 st.markdown(f"**{kpi}**"); st.markdown(f"*{content['description']}*")
@@ -718,7 +680,7 @@ def _render_architecture_philosophy(self):
     def _build_env_factors_from_sidebar(self) -> EnvFactorsWithTolerance:
         env = st.session_state.env_factors
         with st.sidebar.expander("Factores Ambientales Generales", expanded=True):
-            is_holiday=st.checkbox("Es Feriado",value=env.is_holiday); weather=st.selectbox("Clima",["Despejado","Lluvia","Niebla"],index=["Despejado","Lluvia","Niebla"].index(env.weather)); aqi=st.slider("Índice de Calidad del Aire (ICA)",0.0,500.0,env.air_quality_index,5.0); heatwave=st.checkbox("Alerta por Ola de Calor",value=env.heatwave_alert)
+            is_holiday=st.checkbox("Es Feriado",value=env.is_holiday); weather_options = ["Despejado", "Lluvia", "Niebla"]; weather=st.selectbox("Clima",weather_options,index=weather_options.index(env.weather)); aqi=st.slider("Índice de Calidad del Aire (ICA)",0.0,500.0,env.air_quality_index,5.0); heatwave=st.checkbox("Alerta por Ola de Calor",value=env.heatwave_alert)
         with st.sidebar.expander("Factores Contextuales y de Eventos", expanded=True):
             day_type_options = ['Entre Semana','Viernes','Fin de Semana']
             day_type=st.selectbox("Tipo de Día",day_type_options,index=day_type_options.index(env.day_type));
