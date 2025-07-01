@@ -471,25 +471,98 @@ class Dashboard:
             st.warning("No se pudo mostrar el gráfico de Anatomía de Zona Crítica.")
             
     def _plot_critical_zone_anatomy(self, kpi_df: pd.DataFrame):
-        st.markdown("**Análisis:** Este gráfico disecciona la *composición* del riesgo. Cada línea es una zona, ordenada por riesgo total. El **ícono y su posición** muestran la magnitud de cada impulsor de riesgo, permitiendo una comparación directa. El **puntaje total de riesgo** se anota a la derecha para dar contexto.")
+        """
+        [SME VISUALIZATION] Plots a detailed Risk Composition Profile using an Icon-Enhanced Dot Plot.
+        This elegant design allows for instant, intuitive comparison of risk components across zones.
+        """
+        st.markdown("**Análisis:** Este gráfico disecciona la *composición* del riesgo para las zonas más críticas. Cada línea horizontal representa una zona, ordenada por riesgo total. El **ícono y su posición** muestran la magnitud de cada impulsor de riesgo primario, permitiendo una comparación directa entre zonas. El **puntaje total de riesgo** se anota a la derecha para dar un contexto de la magnitud general.")
         try:
-            st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">',unsafe_allow_html=True)
-            risk_cols = ['Violence Clustering Score','Accident Clustering Score','Medical Surge Score']
-            if not all(col in kpi_df.columns for col in risk_cols): st.error("Faltan datos para el gráfico de Anatomía de Zona."); return
-            df_top = kpi_df.nlargest(7,'Integrated_Risk_Score').copy().sort_values('Integrated_Risk_Score',ascending=True)
+            # Inject Font Awesome CSS for icon rendering. This is robust and works in most environments.
+            st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">', unsafe_allow_html=True)
+            
+            risk_cols = ['Violence Clustering Score', 'Accident Clustering Score', 'Medical Surge Score']
+            if not all(col in kpi_df.columns for col in risk_cols):
+                st.error("Faltan datos para el gráfico de Anatomía de Zona."); return
+
+            df_top = kpi_df.nlargest(7, 'Integrated_Risk_Score').copy()
+            df_top = df_top.sort_values('Integrated_Risk_Score', ascending=True) # Sort for bottom-to-top display
+
             fig = go.Figure()
-            risk_visuals = {'Violence Clustering Score':{'name':'Violencia','color':'#D32F2F','icon_html':'<span style="font-family:\'Font Awesome 5 Free\';font-weight:900;color:white;font-size:14px;"></span>'},'Accident Clustering Score':{'name':'Accidente','color':'#FBC02D','icon_html':'<span style="font-family:\'Font Awesome 5 Free\';font-weight:900;color:white;font-size:14px;"></span>'},'Medical Surge Score':{'name':'Médico','color':'#1E90FF','icon_html':'<span style="font-family:\'Font Awesome 5 Free\';font-weight:900;color:white;font-size:14px;"></span>'}}
-            for i,row in df_top.iterrows():
+            
+            # --- Define the visual grammar with CORRECT professional Font Awesome icons ---
+            risk_visuals = {
+                'Violence Clustering Score': {'name': 'Violencia', 'color': '#D32F2F', 'icon_html': '<span style="font-family: \'Font Awesome 5 Free\'; font-weight: 900; color: white; font-size: 14px;"></span>'}, # fa-fire
+                'Accident Clustering Score': {'name': 'Accidente', 'color': '#FBC02D', 'icon_html': '<span style="font-family: \'Font Awesome 5 Free\'; font-weight: 900; color: white; font-size: 14px;"></span>'}, # fa-car-crash
+                'Medical Surge Score':       {'name': 'Médico',  'color': '#1E90FF', 'icon_html': '<span style="font-family: \'Font Awesome 5 Free\'; font-weight: 900; color: white; font-size: 14px;"></span>'}  # fa-heartbeat
+            }
+
+            # Add the connecting lines for each zone (the "dumbbell" bar)
+            for i, row in df_top.iterrows():
                 risk_values = sorted([row[col] for col in risk_cols])
-                fig.add_shape(type='line',x0=risk_values[0],y0=row['Zone'],x1=risk_values[-1],y1=row['Zone'],line=dict(color='rgba(0,0,0,0.2)',width=2),layer='below')
-            for col,props in risk_visuals.items():
-                fig.add_trace(go.Scatter(x=df_top[col],y=df_top['Zone'],mode='markers+text',name=props['name'],marker=dict(color=props['color'],size=28,symbol='circle'),text=[props['icon_html']]*len(df_top),textfont=dict(size=14),hovertemplate="<b>Zona:</b> %{y}<br><b>Tipo de Riesgo:</b> %{name}<br><b>Puntaje:</b> %{x:.3f}<extra></extra>"))
-            for i,row in df_top.iterrows():
-                fig.add_annotation(xref='paper',yref='y',x=1.01,y=row['Zone'],text=f"<b>{row['Integrated_Risk_Score']:.2f}</b>",showarrow=False,font=dict(size=14,color='#37474F',family="Arial Black,sans-serif"),align="left")
-            fig.update_layout(title_text="<b>Anatomía del Riesgo en Zonas Críticas</b>",title_x=0.5,xaxis_title="Puntaje del Componente de Riesgo",yaxis_title=None,height=500,plot_bgcolor='white',paper_bgcolor='white',showlegend=True,legend_title_text='Impulsor de Riesgo',legend=dict(orientation="h",yanchor="bottom",y=1.02,xanchor="right",x=1,font_size=12,itemsizing='constant'),xaxis=dict(showgrid=True,gridcolor='rgba(221,221,221,0.7)',zeroline=False,range=[0,max(0.6,df_top[risk_cols].max().max()*1.1)]),yaxis=dict(showgrid=False),margin=dict(t=80,b=40,l=40,r=60))
-            st.plotly_chart(fig,use_container_width=True)
+                fig.add_shape(
+                    type='line',
+                    x0=risk_values[0], y0=row['Zone'],
+                    x1=risk_values[-1], y1=row['Zone'],
+                    line=dict(color='rgba(0,0,0,0.2)', width=2),
+                    layer='below'
+                )
+
+            # Add the dots and icons as text markers
+            for col, visual_props in risk_visuals.items():
+                fig.add_trace(go.Scatter(
+                    x=df_top[col],
+                    y=df_top['Zone'],
+                    mode='markers+text',
+                    name=visual_props['name'],
+                    marker=dict(
+                        color=visual_props['color'],
+                        size=28,
+                        symbol='circle'
+                    ),
+                    text=[visual_props['icon_html']] * len(df_top),
+                    textfont=dict(size=14), # Size is now controlled within the HTML span
+                    hovertemplate="<b>Zona:</b> %{y}<br><b>Tipo de Riesgo:</b> %{name}<br><b>Puntaje:</b> %{x:.3f}<extra></extra>"
+                ))
+            
+            # Add annotations for the total Integrated Risk Score on the right
+            for i, row in df_top.iterrows():
+                fig.add_annotation(
+                    xref='paper', yref='y',
+                    x=1.01, y=row['Zone'],
+                    text=f"<b>{row['Integrated_Risk_Score']:.2f}</b>",
+                    showarrow=False,
+                    font=dict(size=14, color='#37474F', family="Arial Black, sans-serif"),
+                    align="left"
+                )
+
+            fig.update_layout(
+                title_text="<b>Anatomía del Riesgo en Zonas Críticas</b>",
+                title_x=0.5,
+                xaxis_title="Puntaje del Componente de Riesgo",
+                yaxis_title=None,
+                height=500,
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                showlegend=True,
+                legend_title_text='Impulsor de Riesgo',
+                legend=dict(
+                    orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                    font_size=12,
+                    itemsizing='constant' # Ensures legend markers are uniform
+                ),
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(221, 221, 221, 0.7)',
+                    zeroline=False,
+                    range=[0, max(0.6, df_top[risk_cols].max().max() * 1.15)] # Extend range for annotations
+                ),
+                yaxis=dict(showgrid=False),
+                margin=dict(t=80, b=40, l=40, r=60) # Add right margin for total score annotations
+            )
+            st.plotly_chart(fig, use_container_width=True)
         except Exception as e:
-            logger.error(f"Error en gráfico de anatomía de zona crítica: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Anatomía de Zona Crítica.")
+            logger.error(f"Error en gráfico de anatomía de zona crítica: {e}", exc_info=True)
+            st.warning("No se pudo mostrar el gráfico de Anatomía de Zona Crítica.")
             
     def _plot_risk_contribution_sunburst(self, kpi_df: pd.DataFrame):
         """
