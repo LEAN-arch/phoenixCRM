@@ -387,72 +387,103 @@ class Dashboard:
         except Exception as e:
             logger.error(f"Error en gráfico de oportunidad de asignación: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Oportunidad de Asignación.")
 # --- START: INSERT THE NEW METHOD HERE (around line 543) ---
-# --- REPLACE the old _plot_risk_momentum with this NEW, COMMERCIAL-GRADE version ---
+# In main.py, replace the existing _plot_risk_momentum method with this one.
 
     def _plot_risk_momentum(self, kpi_df: pd.DataFrame):
         """
         [SME VISUALIZATION] Plots a categorized, diverging bar chart for risk momentum.
+
         This commercial-grade plot provides an at-a-glance diagnostic of which zones are
-        heating up or cooling down, and by how much.
+        heating up or cooling down, and by how much. It is designed to be fully resilient,
+        falling back to a synthetic past state if no historical data is loaded, ensuring
+        the dashboard is always functional and provides immediate value.
         """
-        # The SME analysis text is now part of the function call in _render_kpi_deep_dive_tab
-        # For clarity, I'm including the markdown here to show how it should look.
-        # st.markdown(SME_TEXT_BLOCK) # This is where you would put the text from above.
-        
+        # --- 1. DATA ACQUISITION & RESILIENT FALLBACK ---
+        # The first step is to acquire a "previous" state to compare against.
+        # The logic is designed to be fault-tolerant.
         try:
-            # --- START: DATA ACQUISITION & FALLBACK (Same as before) ---
+            # Check if real historical data has been uploaded by the user.
             if 'historical_data' not in st.session_state or not st.session_state.historical_data:
+                # --- FALLBACK PATH ---
+                # If no history exists, we create a plausible, synthetic "past" to ensure the chart can always render.
+                # This prevents a poor user experience on the first run.
                 logger.info("No historical data found for momentum plot. Generating a synthetic past state.")
                 st.markdown("> *Nota: Como no se cargaron datos históricos, esta tendencia se calcula en comparación con un estado anterior simulado.*")
+                
+                # Define a neutral, "normal" environment for the simulated past.
                 default_env = EnvFactors(is_holiday=False, weather="Despejado", traffic_level=1.0, major_event=False, population_density=st.session_state.avg_pop_density, air_quality_index=50.0, heatwave_alert=False, day_type='Entre Semana', time_of_day='Mediodía', public_event_type='Ninguno', hospital_divert_status=0.0, police_activity='Normal', school_in_session=True)
+                
+                # Generate a small, realistic number of incidents for this "quiet" past state.
                 past_incidents = self.dm._generate_synthetic_incidents(default_env, override_count=5)
+                
+                # Calculate the risk scores for this synthetic past. This becomes our `prev_kpi_df`.
+                # We pass an empty list for history since this is a single, stand-alone point in the past.
                 prev_kpi_df = self.engine.generate_kpis([], default_env, past_incidents)
             else:
+                # --- HAPPY PATH ---
+                # If real history exists, use the most recent entry as our "previous" state.
                 last_historical_point = st.session_state.historical_data[-1]
                 historical_incidents = last_historical_point.get('incidents', [])
-                prev_kpi_df = self.engine.generate_kpis(st.session_state.historical_data[:-1], st.session_state.env_factors, historical_incidents)
+                
+                # Calculate the risk scores for that last historical point.
+                prev_kpi_df = self.engine.generate_kpis(
+                    st.session_state.historical_data[:-1], # The history *before* the last point
+                    st.session_state.env_factors,          # The environment context
+                    historical_incidents                   # The incidents of the last point
+                )
             
+            # Final check to ensure we have a valid dataframe to compare against.
             if prev_kpi_df.empty:
                 st.info("No se pudo calcular un estado de riesgo de referencia (real o sintético).")
                 return
-            # --- END: DATA ACQUISITION ---
 
-            # --- START: ENHANCED DATA PREPARATION ---
+            # --- 2. DATA PREPARATION & SME-DRIVEN CATEGORIZATION ---
+            # Here, we transform the raw numbers into a structure perfect for a meaningful visualization.
+
+            # Combine current and previous risk scores into one DataFrame for easy calculation.
             df = kpi_df[['Zone', 'Integrated_Risk_Score']].copy()
             prev_risk = prev_kpi_df.set_index('Zone')['Integrated_Risk_Score']
             df = df.join(prev_risk.rename('Prev_Risk_Score'), on='Zone').fillna(0)
+
+            # Calculate the core metric: the change in risk, or "momentum".
             df['momentum'] = df['Integrated_Risk_Score'] - df['Prev_Risk_Score']
 
-            # Categorize the magnitude of change
+            # This is a key SME enhancement: Convert a continuous number into discrete, human-readable categories.
+            # This allows a commander to instantly grasp the magnitude of the change.
             bins = [-float('inf'), -0.15, -0.01, 0.01, 0.15, float('inf')]
             labels = ["Desescalando", "Enfriándose", "Estable", "Calentándose", "Oleada de Riesgo"]
             df['category'] = pd.cut(df['momentum'], bins=bins, labels=labels)
 
-            # Assign colors based on the new categories for a gradient effect
+            # Map the categories to a professional, intuitive color palette.
             color_map = {
-                "Oleada de Riesgo": "#B71C1C", # Dark, alarming red
-                "Calentándose": "#E57373",     # Lighter, warning red
-                "Estable": "#BDBDBD",          # Neutral grey
-                "Enfriándose": "#81C784",     # Lighter, positive green
-                "Desescalando": "#2E7D32"      # Dark, strong green
+                "Oleada de Riesgo": "#B71C1C", # Dark, alarming red for significant increases
+                "Calentándose": "#E57373",     # Lighter, warning red for moderate increases
+                "Estable": "#BDBDBD",          # Neutral grey for negligible changes
+                "Enfriándose": "#81C784",     # Lighter, positive green for moderate decreases
+                "Desescalando": "#2E7D32"      # Dark, strong green for significant decreases
             }
             df['color'] = df['category'].map(color_map)
+
+            # Pre-format the text that will appear on the bars for clarity and consistency.
             df['text_value'] = df['momentum'].apply(lambda x: f"{x:+.2f}")
             
-            # Sort by absolute value to put the most significant changes at the top
+            # Sort the DataFrame by the momentum value to ensure the chart is logically ordered.
             df = df.sort_values(by='momentum', ascending=True)
-            # --- END: ENHANCED DATA PREPARATION ---
-            
-            # --- START: COMMERCIAL-GRADE PLOTLY VISUALIZATION ---
+
+            # --- 3. COMMERCIAL-GRADE PLOTLY VISUALIZATION ---
+            # Build the chart using best practices for clarity, polish, and information density.
+
             fig = go.Figure()
+            # Add the main bar trace.
             fig.add_trace(go.Bar(
                 x=df['momentum'],
                 y=df['Zone'],
                 orientation='h',
-                marker_color=df['color'],
-                text=df['text_value'],
-                textposition='outside',
+                marker_color=df['color'], # Apply our category-based colors to each bar
+                text=df['text_value'],    # Add the pre-formatted value as a label
+                textposition='outside',   # Place the label outside the bar for readability
                 textfont=dict(size=12),
+                # Bundle rich data for the hover-over tooltip. This is a key feature for deep dives.
                 customdata=df[['category', 'Integrated_Risk_Score', 'Prev_Risk_Score']],
                 hovertemplate=(
                     "<b>Zona: %{y}</b><br>"
@@ -465,26 +496,28 @@ class Dashboard:
                 )
             ))
 
+            # Add a strong central line at zero. This is the visual anchor for the diverging chart.
             fig.add_vline(x=0, line_width=1.5, line_color='black', opacity=0.8)
             
-            # Use annotations for a cleaner title and subtitle
+            # Apply layout settings for a clean, professional, and readable appearance.
             fig.update_layout(
-                title=None, # We create our own title with annotations
-                height=max(500, len(df) * 35), # Dynamic height
+                title=None, # We use annotations for a more powerful title/subtitle combo.
+                height=max(500, len(df) * 35), # Dynamically adjust height to prevent crowding.
                 plot_bgcolor='white',
                 showlegend=False,
                 xaxis=dict(
-                    title="← Riesgo Disminuyendo | Riesgo Aumentando →",
+                    title="← Riesgo Disminuyendo | Riesgo Aumentando →", # Intuitive axis title
                     gridcolor='#e5e5e5',
                     zeroline=False
                 ),
                 yaxis=dict(
                     showgrid=False,
-                    categoryorder='trace' # Respects our pre-sorted data
+                    categoryorder='trace' # Crucial: respects our custom Pandas sort order.
                 ),
-                margin=dict(l=40, r=40, t=80, b=40) # More top margin for title
+                margin=dict(l=40, r=40, t=80, b=40) # Add top margin for the annotation titles.
             )
             
+            # Add a left-aligned, multi-line title and subtitle using annotations for a polished, report-like feel.
             fig.add_annotation(
                 xref='paper', yref='paper', x=0.0, y=1.07,
                 showarrow=False, align='left',
@@ -497,10 +530,11 @@ class Dashboard:
                 text="Comparación del riesgo actual vs. el período anterior",
                 font=dict(size=14, color="#666", family="Arial, sans-serif")
             )
-            # --- END: PLOTLY VISUALIZATION ---
             
             st.plotly_chart(fig, use_container_width=True)
 
+        # --- 4. EXCEPTION HANDLING ---
+        # Catch any unexpected errors during plot generation and display a user-friendly message.
         except Exception as e:
             logger.error(f"Error al graficar el momentum del riesgo: {e}", exc_info=True)
             st.warning("No se pudo mostrar el gráfico de Tendencia del Riesgo.")
