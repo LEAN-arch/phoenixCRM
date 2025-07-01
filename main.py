@@ -310,7 +310,7 @@ class Dashboard:
         st.divider()
         st.subheader("Visualizaciones Analíticas Avanzadas")
         if not kpi_df.empty:
-            tab_titles = ["📍 Vista Estratégica", "🎯 Oportunidades de Asignación", "⏱️ Tendencias del Riesgo", "🧬 Anatomía de las Zonas Crítica", "🧩 Análisis Detallado de Zonas", "🔭 Pronóstico a 72 Horas"]
+            tab_titles = ["📍 Vista Estratégica", "🎯 Asignación de Recursos", "⏱️ Tendencias del Riesgo", "🧬 Anatomía de las Zonas Críticas", "🧩 Análisis Detallado de Zonas", "🔭 Pronóstico de Incidentes a 72 Horas"]
             tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(tab_titles)
             with tab1: self._plot_vulnerability_quadrant(kpi_df)
             with tab2: self._plot_allocation_opportunity(kpi_df, st.session_state.allocations)
