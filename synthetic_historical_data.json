@@ -1,0 +1,59 @@
+[
+  {
+    "timestamp": "2025-07-01T10:00:00Z",
+    "incidents": [
+      {
+        "id": "HIST-DAY1-001",
+        "type": "Trauma-Accident",
+        "triage": "Yellow",
+        "location": { "lat": 32.525, "lon": -117.045 },
+        "timestamp": "2025-07-01T09:55:00Z"
+      },
+      {
+        "id": "HIST-DAY1-002",
+        "type": "Medical-Chronic",
+        "triage": "Green",
+        "location": { "lat": 32.536, "lon": -116.96 },
+        "timestamp": "2025-07-01T09:58:00Z"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-07-02T14:00:00Z",
+    "incidents": [
+      {
+        "id": "HIST-DAY2-001",
+        "type": "Trauma-Violence",
+        "triage": "Red",
+        "location": { "lat": 32.531, "lon": -117.035 },
+        "timestamp": "2025-07-02T13:45:00Z"
+      },
+      {
+        "id": "HIST-DAY2-002",
+        "type": "Medical-Acute",
+        "triage": "Red",
+        "location": { "lat": 32.52, "lon": -117.125 },
+        "timestamp": "2025-07-02T13:50:00Z"
+      },
+      {
+        "id": "HIST-DAY2-003",
+        "type": "Trauma-Accident",
+        "triage": "Yellow",
+        "location": { "lat": 32.538, "lon": -116.97 },
+        "timestamp": "2025-07-02T13:55:00Z"
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-07-03T18:00:00Z",
+    "incidents": [
+      {
+        "id": "HIST-DAY3-001",
+        "type": "Trauma-Violence",
+        "triage": "Red",
+        "location": { "lat": 32.533, "lon": -117.038 },
+        "timestamp": "2025-07-03T17:55:00Z"
+      }
+    ]
+  }
+]
