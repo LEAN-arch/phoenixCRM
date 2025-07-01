@@ -387,7 +387,7 @@ class Dashboard:
         except Exception as e:
             logger.error(f"Error en gráfico de oportunidad de asignación: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Oportunidad de Asignación.")
 # --- START: INSERT THE NEW METHOD HERE (around line 543) ---
-# --- REPLACE your previous plotting function with this complete, correctly named version ---
+# --- PASTE THIS ENTIRE BLOCK INTO main.py WITH THE CORRECT INDENTATION ---
 
     def _plot_risk_momentum(self, kpi_df: pd.DataFrame):
         """
@@ -395,12 +395,12 @@ class Dashboard:
 
         This function visualizes the rate of change of risk (points/hour) and uses iconic
         alerts to flag zones that are accelerating into a crisis state. It is designed
+
         to be fully resilient, falling back to a synthetic past state if no historical
         data is loaded.
         """
         try:
             # --- START: INTEGRATED SME ANALYSIS TEXT ---
-            # This markdown block provides the crucial context and interpretation guide for the user.
             st.markdown("""
             ### **Diagnóstico de Velocidad del Riesgo: Identificando Amenazas Aceleradas**
 
@@ -492,7 +492,7 @@ class Dashboard:
             ))
 
             fig.add_vline(x=0, line_width=1.5, line_color='black', opacity=0.8)
-            
+
             fig.update_layout(
                 title=None,
                 height=max(500, len(df) * 35),
@@ -506,7 +506,7 @@ class Dashboard:
                 yaxis=dict(showgrid=False, categoryorder='trace'),
                 margin=dict(l=40, r=40, t=10, b=40)
             )
-            
+
             st.plotly_chart(fig, use_container_width=True)
 
         except Exception as e:
