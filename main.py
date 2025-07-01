@@ -508,26 +508,91 @@ class Dashboard:
             st.warning("No se pudo mostrar el gráfico de Contribución de Riesgo.")
             
     def _plot_forecast_with_uncertainty(self):
-        st.markdown("**Análisis:** Proyecta el riesgo durante 72 horas. El área sombreada es el intervalo de confianza del 95%.")
+        """
+        [SME VISUALIZATION] Plots the 72-hour risk forecast with enhanced context and interactivity.
+        This includes confidence intervals and a critical risk threshold.
+        """
+        st.markdown("""
+        **Análisis:** Este gráfico proyecta la trayectoria del riesgo para las zonas seleccionadas durante las próximas 72 horas.
+        **Cómo Interpretar:**
+        - **Línea Sólida:** La predicción más probable del puntaje de riesgo.
+        - **Área Sombreada:** El intervalo de confianza del 95%. Un área más ancha indica una mayor incertidumbre en la predicción.
+        - **Línea Roja Punteada:** El umbral de riesgo crítico. Permite identificar rápidamente cuándo se espera que una zona entre en un estado de alta peligrosidad.
+        """)
         try:
             fc_df, kpi_df = st.session_state.forecast_df, st.session_state.kpi_df
-            if fc_df.empty or kpi_df.empty: st.info("No hay datos de pronóstico para mostrar."); return
-            zones, defaults = sorted(fc_df['Zone'].unique().tolist()), kpi_df.nlargest(3,'Integrated_Risk_Score')['Zone'].tolist()
-            selected = st.multiselect("Seleccione zonas para pronóstico:",options=zones,default=defaults)
-            if not selected: st.info("Por favor, seleccione al menos una zona."); return
+            if fc_df.empty or kpi_df.empty:
+                st.info("No hay datos de pronóstico para mostrar."); return
+            
+            zones = sorted(fc_df['Zone'].unique().tolist())
+            defaults = kpi_df.nlargest(3, 'Integrated_Risk_Score')['Zone'].tolist()
+            
+            selected_zones = st.multiselect("Seleccione Zonas para Pronóstico:", options=zones, default=defaults, key="forecast_zone_select")
+            
+            if not selected_zones:
+                st.info("Por favor, seleccione al menos una zona para visualizar el pronóstico."); return
+
             fig = go.Figure()
             colors = px.colors.qualitative.Plotly
-            for i,zone in enumerate(selected):
-                zone_df = fc_df[fc_df['Zone']==zone]
-                if zone_df.empty: continue
-                color,rgb = colors[i%len(colors)],px.colors.hex_to_rgb(colors[i%len(colors)])
-                fig.add_trace(go.Scatter(x=np.concatenate([zone_df['Horizon (Hours)'],zone_df['Horizon (Hours)'][::-1]]),y=np.concatenate([zone_df['Upper_Bound'],zone_df['Lower_Bound'][::-1]]),fill='toself',fillcolor=f'rgba({",".join(map(str,rgb))},0.2)',line={'color':'rgba(255,255,255,0)'},hoverinfo="skip",showlegend=False))
-                fig.add_trace(go.Scatter(x=zone_df['Horizon (Hours)'],y=zone_df['Combined Risk'],name=zone,line=dict(color=color,width=2),mode='lines+markers'))
-            fig.update_layout(title='Pronóstico de Riesgo a 72 Horas con Intervalo de Confianza del 95%',xaxis_title='Horizonte (Horas)',yaxis_title='Puntaje de Riesgo Integrado Proyectado',legend_title_text='Zona',hovermode="x unified")
-            st.plotly_chart(fig,use_container_width=True)
-        except Exception as e:
-            logger.error(f"Error en gráfico de pronóstico: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de pronóstico.")
 
+            for i, zone in enumerate(selected_zones):
+                zone_df = fc_df[fc_df['Zone'] == zone]
+                if zone_df.empty: continue
+                
+                color = colors[i % len(colors)]
+                rgb = px.colors.hex_to_rgb(color)
+                
+                # Add uncertainty band (area)
+                fig.add_trace(go.Scatter(
+                    x=np.concatenate([zone_df['Horizon (Hours)'], zone_df['Horizon (Hours)'][::-1]]),
+                    y=np.concatenate([zone_df['Upper_Bound'], zone_df['Lower_Bound'][::-1]]),
+                    fill='toself',
+                    fillcolor=f'rgba({",".join(map(str,rgb))}, 0.15)',
+                    line={'color': 'rgba(255,255,255,0)'},
+                    hoverinfo="skip",
+                    showlegend=False
+                ))
+                
+                # Add main forecast line
+                fig.add_trace(go.Scatter(
+                    x=zone_df['Horizon (Hours)'],
+                    y=zone_df['Combined Risk'],
+                    name=zone,
+                    line=dict(color=color, width=2.5),
+                    mode='lines+markers',
+                    hovertemplate=f"<b>{zone}</b><br>Hora: %{{x}}h<br>Riesgo Proyectado: %{{y:.3f}}<extra></extra>"
+                ))
+            
+            # --- Add Critical Risk Threshold for context ---
+            critical_threshold = 0.75  # Example threshold
+            fig.add_hline(
+                y=critical_threshold,
+                line_dash="dash",
+                line_color="#D32F2F",
+                line_width=2,
+                annotation_text="Umbral de Riesgo Crítico",
+                annotation_position="bottom right",
+                annotation_font=dict(color="#D32F2F", size=12)
+            )
+
+            fig.update_layout(
+                title_text="<b>Pronóstico de Trayectoria de Riesgo y Incertidumbre</b>",
+                title_x=0.5,
+                xaxis_title="Horizonte de Pronóstico (Horas)",
+                yaxis_title="Puntaje de Riesgo Integrado Proyectado",
+                height=500,
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                legend_title_text='Zona',
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                hovermode="x unified",
+                xaxis=dict(gridcolor='#e5e5e5'),
+                yaxis=dict(gridcolor='#e5e5e5', range=[0, 1])
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            logger.error(f"Error en gráfico de pronóstico: {e}", exc_info=True)
+            st.warning("No se pudo mostrar el gráfico de pronóstico.")
     # --- Metodología, etc. ---
     def _render_methodology_tab(self):
         st.header("Arquitectura y Metodología del Sistema")
