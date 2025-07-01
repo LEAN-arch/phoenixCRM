@@ -494,7 +494,7 @@ class Dashboard:
 
     def _render_prediction_engine(self):
         with st.expander("II. El Motor de Predicción: Un Análisis Profundo Multi-modelo", expanded=False):
-            st.info("#### Principio Fundamental:Los incidentes urbanos presentan una naturaleza compleja y dinámica, lo que imposibilita la aplicación de un modelo único capaz de abordar la totalidad de escenarios posibles. En respuesta a esta limitación, RedShield AI emplea herramientas analíticas específicas, seleccionadas según el tipo de análisis requerido: diagnóstico, predictivo o prescriptivo.Sus algoritmos operan bajo principios de aprendizaje continuo, alimentándose de datos actualizados en tiempo real, fluida y dinámica, lo que incrementa su precisión. El enfoque metodológico de RedShield AI se basa en la integración flexible de modelos matemáticos, estadísticos, computacionales y cualitativos, permitiendo una adaptación efectiva al contexto y respaldando la toma de decisiones informadas, oportunas y basadas en evidencia.", icon="💡")
+            st.info("#### Principio Fundamental:Los incidentes urbanos presentan una naturaleza compleja y dinámica, lo que imposibilita la aplicación de un modelo único capaz de abordar la totalidad de escenarios posibles. En respuesta a esta limitación, RedShield AI emplea herramientas analíticas específicas, seleccionadas según el tipo de análisis requerido: diagnóstico, predictivo o prescriptivo. Sus algoritmos operan bajo principios de aprendizaje continuo, alimentándose de datos actualizados en tiempo real, de forma fluida, evolutiva y dinámica, lo que incrementa su precisión. El enfoque metodológico de RedShield AI se basa en la integración flexible de modelos matemáticos, estadísticos, computacionales y cualitativos, permitiendo una adaptación efectiva al contexto y respaldando la toma de decisiones informadas, oportunas y basadas en evidencia.", icon="💡")
             st.markdown("---")
             st.markdown("#### **A. Modelos Estocásticos y Estadísticos (El 'Cuándo')**")
             st.markdown("""
@@ -571,7 +571,7 @@ class Dashboard:
             
     def _render_prescription_engine(self):
         with st.expander("III. El Motor de Prescripción: Asignación Óptima de Recursos", expanded=False):
-            st.info("#### Principio Fundamental: Pasar de 'qué sucederá' a 'cuál es la mejor acción a tomar'.", icon="🎯")
+            st.info("#### Principio Fundamental: Pasar de 'qué sucederá' a 'cuál es la mejor acción a tomar' en este momento y en un horizonte de futuro inmediato, basándose en datos actuales analizados en tiempo real.", icon="🎯")
             st.markdown("""
             El motor prescriptivo utiliza los puntajes de riesgo de la capa de predicción como entradas para modelos sofisticados de Investigación de Operaciones. Esto asegura que la asignación de recursos no sea solo intuitiva, sino matemáticamente óptima según nuestros objetivos.
             
