@@ -386,6 +386,75 @@ class Dashboard:
             st.plotly_chart(fig,use_container_width=True)
         except Exception as e:
             logger.error(f"Error en gráfico de oportunidad de asignación: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Oportunidad de Asignación.")
+        def _plot_risk_momentum(self, kpi_df: pd.DataFrame):
+        """
+        [SME VISUALIZATION] Plots the change in risk from the previous period to the current one.
+        This "momentum" chart quickly identifies zones that are heating up or cooling down.
+        """
+        st.markdown("**Análisis:** Este gráfico muestra el 'momentum' del riesgo—qué tan rápido está cambiando el riesgo para cada zona. Las barras rojas indican zonas donde el riesgo está aumentando ('calentándose'), mientras que las barras verdes muestran zonas donde el riesgo está disminuyendo ('enfriándose'). Esto es crucial para la asignación proactiva de recursos.")
+        try:
+            # We need at least one historical data point to calculate momentum.
+            if 'historical_data' not in st.session_state or not st.session_state.historical_data:
+                st.info("No hay datos históricos disponibles para calcular la tendencia del riesgo. Por favor, cargue un archivo de historial.")
+                return
+
+            # To get a 'previous' state, we run the KPI generation on the last historical snapshot.
+            # We must use the core `generate_kpis` method, not the one with sparklines.
+            last_historical_point = st.session_state.historical_data[-1]
+            historical_incidents = last_historical_point.get('incidents', [])
+            
+            # Note: A more advanced implementation might also retrieve historical EnvFactors.
+            # For this visualization, using current factors is a reasonable proxy for context.
+            prev_kpi_df = self.engine.generate_kpis(
+                st.session_state.historical_data[:-1], # History before the last point
+                st.session_state.env_factors,          # Current environmental context
+                historical_incidents                   # Incidents from the last historical point
+            )
+
+            if prev_kpi_df.empty:
+                st.info("No se pudo calcular el estado de riesgo anterior a partir de los datos históricos.")
+                return
+
+            # Prepare data for comparison
+            df = kpi_df[['Zone', 'Integrated_Risk_Score']].copy()
+            prev_risk = prev_kpi_df.set_index('Zone')['Integrated_Risk_Score']
+            df = df.join(prev_risk.rename('Prev_Risk_Score'), on='Zone')
+            df.fillna(0, inplace=True) # Fill zones that might not have existed before
+
+            # Calculate momentum and assign color
+            df['momentum'] = df['Integrated_Risk_Score'] - df['Prev_Risk_Score']
+            df['color'] = df['momentum'].apply(lambda m: '#D32F2F' if m > 0.001 else '#388E3C')
+            df = df.sort_values('momentum', ascending=True)
+
+            # Create the plot
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=df['momentum'],
+                y=df['Zone'],
+                orientation='h',
+                marker_color=df['color'],
+                hovertemplate="<b>Zona: %{y}</b><br>Cambio en Riesgo: %{x:+.3f}<extra></extra>"
+            ))
+
+            fig.add_vline(x=0, line_width=2, line_color='black')
+
+            fig.update_layout(
+                title_text="<b>Tendencia del Riesgo (Momentum) por Zona</b>",
+                xaxis_title="Cambio en el Puntaje de Riesgo Integrado (Actual vs. Anterior)",
+                yaxis_title=None,
+                height=500,
+                plot_bgcolor='white',
+                showlegend=False,
+                xaxis=dict(gridcolor='#e5e5e5'),
+                yaxis=dict(showgrid=False),
+                margin=dict(l=40, r=40, t=60, b=40)
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+
+        except Exception as e:
+            logger.error(f"Error al graficar el momentum del riesgo: {e}", exc_info=True)
+            st.warning("No se pudo mostrar el gráfico de Tendencia del Riesgo.")
             
     def _plot_critical_zone_anatomy(self, kpi_df: pd.DataFrame):
         st.markdown("**Analysis:** This chart dissects the *composition* of risk for the most critical zones. Each horizontal line represents a zone, ordered by total risk. The **icon and its position** show the magnitude of each primary risk driver, allowing for direct comparison. The **total integrated risk score** is annotated on the right for context.")
