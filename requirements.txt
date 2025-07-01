@@ -1,0 +1,34 @@
+# requirements.txt
+# Dependencies for RedShield AI: Phoenix v4.0 (Python 3.12+ compatible)
+
+# --- Core Web Framework ---
+streamlit==1.38.0             # The main framework for building the interactive web app UI
+
+# --- Data Handling and Numerical Computation ---
+pandas==2.2.3                 # For data manipulation and analysis (DataFrames)
+numpy==1.26.4                 # Fundamental package for numerical computing
+scipy==1.13.1                 # For scientific and technical computing (e.g., stats, norm)
+
+# --- Geospatial Analysis ---
+geopandas==1.0.1              # For working with geospatial data, enables spatial joins
+shapely==2.0.6                # For manipulation and analysis of planar geometric objects
+
+# --- Graph Analysis ---
+networkx==3.3                 # For creating and analyzing complex networks (e.g., road network)
+
+# --- Visualization ---
+plotly==5.24.1                # For creating interactive charts and graphs [ADDED TO FIX ModuleNotFoundError]
+folium==0.17.0                # For creating interactive leaflet maps (heatmaps)
+streamlit-folium==0.22.0      # Integrates Folium maps into Streamlit
+matplotlib==3.9.2             # Required by pandas for .style.background_gradient() functionality
+
+# --- Reporting ---
+reportlab==4.2.2              # For programmatically creating PDF documents
+
+# --- External Communication ---
+requests==2.32.3              # For making HTTP requests to external APIs
+
+# --- Optional Machine Learning Libraries ---
+# The application handles these gracefully if not installed, but they enable full functionality.
+torch==2.4.1                  # Deep learning framework for the TCNN model
+pgmpy==0.1.26                 # For probabilistic graphical models (Bayesian Network)
