@@ -494,9 +494,7 @@ class Dashboard:
 
     def _render_prediction_engine(self):
         with st.expander("II. El Motor de Predicción: Un Análisis Profundo Multi-modelo", expanded=False):
-            st.info("#### Principio Fundamental:Los incidentes urbanos presentan una naturaleza compleja y dinámica, lo que imposibilita la aplicación de un modelo único capaz de abordar la totalidad de escenarios posibles. En respuesta a esta limitación, RedShield AI emplea herramientas analíticas específicas, seleccionadas según el tipo de análisis requerido: diagnóstico, predictivo o prescriptivo.
-
-Sus algoritmos operan bajo principios de aprendizaje continuo, alimentándose de datos actualizados en tiempo real, fluida y dinámica, lo que incrementa su precisión. El enfoque metodológico de RedShield AI se basa en la integración flexible de modelos matemáticos, estadísticos, computacionales y cualitativos, permitiendo una adaptación efectiva al contexto y respaldando la toma de decisiones informadas, oportunas y basadas en evidencia.", icon="💡")
+            st.info("#### Principio Fundamental:Los incidentes urbanos presentan una naturaleza compleja y dinámica, lo que imposibilita la aplicación de un modelo único capaz de abordar la totalidad de escenarios posibles. En respuesta a esta limitación, RedShield AI emplea herramientas analíticas específicas, seleccionadas según el tipo de análisis requerido: diagnóstico, predictivo o prescriptivo.Sus algoritmos operan bajo principios de aprendizaje continuo, alimentándose de datos actualizados en tiempo real, fluida y dinámica, lo que incrementa su precisión. El enfoque metodológico de RedShield AI se basa en la integración flexible de modelos matemáticos, estadísticos, computacionales y cualitativos, permitiendo una adaptación efectiva al contexto y respaldando la toma de decisiones informadas, oportunas y basadas en evidencia.", icon="💡")
             st.markdown("---")
             st.markdown("#### **A. Modelos Estocásticos y Estadísticos (El 'Cuándo')**")
             st.markdown("""
