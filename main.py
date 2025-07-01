@@ -387,157 +387,132 @@ class Dashboard:
         except Exception as e:
             logger.error(f"Error en gráfico de oportunidad de asignación: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Oportunidad de Asignación.")
 # --- START: INSERT THE NEW METHOD HERE (around line 543) ---
-# In main.py, replace the existing _plot_risk_momentum method with this one.
+# --- REPLACE your previous plotting function with this complete, self-contained version ---
 
-    def _plot_risk_momentum(self, kpi_df: pd.DataFrame):
+    def _plot_risk_velocity(self, kpi_df: pd.DataFrame):
         """
-        [SME VISUALIZATION] Plots a categorized, diverging bar chart for risk momentum.
+        [SME VISUALIZATION] Plots a "Risk Velocity" chart with an integrated interpretation guide.
 
-        This commercial-grade plot provides an at-a-glance diagnostic of which zones are
-        heating up or cooling down, and by how much. It is designed to be fully resilient,
-        falling back to a synthetic past state if no historical data is loaded, ensuring
-        the dashboard is always functional and provides immediate value.
+        This function is a self-contained module for visualizing the rate of change of risk.
+        It includes the expert analysis text, resilient data acquisition with a synthetic fallback,
+        rate calculation, and the final Plotly visualization.
         """
-        # --- 1. DATA ACQUISITION & RESILIENT FALLBACK ---
-        # The first step is to acquire a "previous" state to compare against.
-        # The logic is designed to be fault-tolerant.
         try:
-            # Check if real historical data has been uploaded by the user.
+            # --- START: INTEGRATED SME ANALYSIS TEXT ---
+            # This markdown block provides the crucial context and interpretation guide for the user,
+            # explaining what the chart means and how to use it for decision-making.
+            # By including it here, the function becomes a complete, reusable component.
+            st.markdown("""
+            ### **Diagnóstico de Velocidad del Riesgo: Identificando Amenazas Aceleradas**
+
+            **Análisis:** Este gráfico de diagnóstico avanzado visualiza la **velocidad del riesgo**—la tasa a la que el riesgo de una zona está cambiando, medida en *puntos de riesgo por hora*. Va más allá de simplemente saber si el riesgo está subiendo o bajando; le dice *qué tan rápido* está sucediendo, permitiendo detectar crisis emergentes antes de que se vuelvan inmanejables.
+
+            **Cómo Interpretar para la Acción:**
+
+            -   **<span style='color:#B71C1C;'>🔥 **Aceleración Crítica**:</span>** El ícono de fuego marca las zonas donde el riesgo está aumentando a una velocidad peligrosamente alta. **Estas son sus prioridades N°1.** Una zona puede tener un riesgo total moderado, pero si su velocidad es crítica, se está convirtiendo rápidamente en el próximo punto de crisis. Considere un despliegue inmediato de recursos para contener la situación.
+
+            -   **<span style='color:#E57373;'>🔺 Calentándose:</span>** La velocidad es positiva pero no crítica. Estas zonas requieren una vigilancia estrecha. Son candidatos para el pre-posicionamiento de recursos en las próximas horas.
+
+            -   **<span style='color:#BDBDBD;'>▬ Estable:</span>** La velocidad es cercana a cero. El estado de la zona es estable.
+
+            -   **<span style='color:#81C784;'>🔻 Enfriándose / Desescalando:</span>** La velocidad es negativa, indicando que las condiciones están mejorando. Si la velocidad de desescalada es alta, podría indicar una oportunidad para reasignar recursos a zonas que se están calentando.
+
+            **El Principio Clave:** La **velocidad del riesgo** es a menudo un indicador principal más importante que el nivel de riesgo absoluto. Un buque de guerra lento (alto riesgo, baja velocidad) puede ser menos preocupante que un torpedo rápido (riesgo moderado, alta velocidad). Use este gráfico para **detectar los torpedos**.
+            """, unsafe_allow_html=True)
+            # --- END: INTEGRATED SME ANALYSIS TEXT ---
+
+            # --- 1. DATA ACQUISITION & TIME CALCULATION ---
+            current_time = datetime.utcnow()
+
             if 'historical_data' not in st.session_state or not st.session_state.historical_data:
-                # --- FALLBACK PATH ---
-                # If no history exists, we create a plausible, synthetic "past" to ensure the chart can always render.
-                # This prevents a poor user experience on the first run.
-                logger.info("No historical data found for momentum plot. Generating a synthetic past state.")
-                st.markdown("> *Nota: Como no se cargaron datos históricos, esta tendencia se calcula en comparación con un estado anterior simulado.*")
-                
-                # Define a neutral, "normal" environment for the simulated past.
+                logger.info("No historical data found. Simulating a past state from 24 hours ago for velocity.")
+                st.markdown("> *Nota: La velocidad se calcula en comparación con un estado anterior simulado de hace 24 horas.*")
+                past_time = current_time - timedelta(hours=24)
                 default_env = EnvFactors(is_holiday=False, weather="Despejado", traffic_level=1.0, major_event=False, population_density=st.session_state.avg_pop_density, air_quality_index=50.0, heatwave_alert=False, day_type='Entre Semana', time_of_day='Mediodía', public_event_type='Ninguno', hospital_divert_status=0.0, police_activity='Normal', school_in_session=True)
-                
-                # Generate a small, realistic number of incidents for this "quiet" past state.
                 past_incidents = self.dm._generate_synthetic_incidents(default_env, override_count=5)
-                
-                # Calculate the risk scores for this synthetic past. This becomes our `prev_kpi_df`.
-                # We pass an empty list for history since this is a single, stand-alone point in the past.
                 prev_kpi_df = self.engine.generate_kpis([], default_env, past_incidents)
             else:
-                # --- HAPPY PATH ---
-                # If real history exists, use the most recent entry as our "previous" state.
                 last_historical_point = st.session_state.historical_data[-1]
                 historical_incidents = last_historical_point.get('incidents', [])
-                
-                # Calculate the risk scores for that last historical point.
-                prev_kpi_df = self.engine.generate_kpis(
-                    st.session_state.historical_data[:-1], # The history *before* the last point
-                    st.session_state.env_factors,          # The environment context
-                    historical_incidents                   # The incidents of the last point
-                )
-            
-            # Final check to ensure we have a valid dataframe to compare against.
+                try:
+                    past_time = datetime.fromisoformat(last_historical_point.get('timestamp'))
+                except (ValueError, TypeError):
+                    logger.warning("Could not parse timestamp from history. Assuming 24 hours ago.")
+                    past_time = current_time - timedelta(hours=24)
+                prev_kpi_df = self.engine.generate_kpis(st.session_state.historical_data[:-1], st.session_state.env_factors, historical_incidents)
+
             if prev_kpi_df.empty:
-                st.info("No se pudo calcular un estado de riesgo de referencia (real o sintético).")
+                st.info("No se pudo calcular un estado de riesgo de referencia.")
                 return
 
-            # --- 2. DATA PREPARATION & SME-DRIVEN CATEGORIZATION ---
-            # Here, we transform the raw numbers into a structure perfect for a meaningful visualization.
+            time_delta_hours = max(1.0, (current_time - past_time).total_seconds() / 3600)
 
-            # Combine current and previous risk scores into one DataFrame for easy calculation.
+            # --- 2. DATA PREPARATION & VELOCITY CALCULATION ---
             df = kpi_df[['Zone', 'Integrated_Risk_Score']].copy()
             prev_risk = prev_kpi_df.set_index('Zone')['Integrated_Risk_Score']
             df = df.join(prev_risk.rename('Prev_Risk_Score'), on='Zone').fillna(0)
-
-            # Calculate the core metric: the change in risk, or "momentum".
             df['momentum'] = df['Integrated_Risk_Score'] - df['Prev_Risk_Score']
+            df['velocity'] = df['momentum'] / time_delta_hours
 
-            # This is a key SME enhancement: Convert a continuous number into discrete, human-readable categories.
-            # This allows a commander to instantly grasp the magnitude of the change.
-            bins = [-float('inf'), -0.15, -0.01, 0.01, 0.15, float('inf')]
-            labels = ["Desescalando", "Enfriándose", "Estable", "Calentándose", "Oleada de Riesgo"]
-            df['category'] = pd.cut(df['momentum'], bins=bins, labels=labels)
+            CRITICAL_VELOCITY_THRESHOLD = 0.10
+            bins = [-float('inf'), -CRITICAL_VELOCITY_THRESHOLD, -0.01, 0.01, CRITICAL_VELOCITY_THRESHOLD, float('inf')]
+            labels = ["Desescalada Rápida", "Enfriándose", "Estable", "Calentándose", "Aceleración Crítica"]
+            df['category'] = pd.cut(df['velocity'], bins=bins, labels=labels)
 
-            # Map the categories to a professional, intuitive color palette.
-            color_map = {
-                "Oleada de Riesgo": "#B71C1C", # Dark, alarming red for significant increases
-                "Calentándose": "#E57373",     # Lighter, warning red for moderate increases
-                "Estable": "#BDBDBD",          # Neutral grey for negligible changes
-                "Enfriándose": "#81C784",     # Lighter, positive green for moderate decreases
-                "Desescalando": "#2E7D32"      # Dark, strong green for significant decreases
-            }
+            color_map = {"Aceleración Crítica": "#B71C1C", "Calentándose": "#E57373", "Estable": "#BDBDBD", "Enfriándose": "#81C784", "Desescalada Rápida": "#2E7D32"}
             df['color'] = df['category'].map(color_map)
 
-            # Pre-format the text that will appear on the bars for clarity and consistency.
-            df['text_value'] = df['momentum'].apply(lambda x: f"{x:+.2f}")
-            
-            # Sort the DataFrame by the momentum value to ensure the chart is logically ordered.
-            df = df.sort_values(by='momentum', ascending=True)
+            def create_zone_label(row):
+                if row['category'] == 'Aceleración Crítica':
+                    return f"🔥 {row['Zone']}"
+                return row['Zone']
+            df['zone_label'] = df.apply(create_zone_label, axis=1)
 
-            # --- 3. COMMERCIAL-GRADE PLOTLY VISUALIZATION ---
-            # Build the chart using best practices for clarity, polish, and information density.
+            df['text_value'] = df['velocity'].apply(lambda x: f"{x:+.2f}")
+            df = df.sort_values(by='velocity', ascending=True)
 
+            # --- 3. ENHANCED PLOTLY VISUALIZATION ---
             fig = go.Figure()
-            # Add the main bar trace.
             fig.add_trace(go.Bar(
-                x=df['momentum'],
-                y=df['Zone'],
+                x=df['velocity'],
+                y=df['zone_label'],
                 orientation='h',
-                marker_color=df['color'], # Apply our category-based colors to each bar
-                text=df['text_value'],    # Add the pre-formatted value as a label
-                textposition='outside',   # Place the label outside the bar for readability
+                marker_color=df['color'],
+                text=df['text_value'],
+                textposition='outside',
                 textfont=dict(size=12),
-                # Bundle rich data for the hover-over tooltip. This is a key feature for deep dives.
-                customdata=df[['category', 'Integrated_Risk_Score', 'Prev_Risk_Score']],
+                customdata=df[['category', 'Integrated_Risk_Score']],
                 hovertemplate=(
                     "<b>Zona: %{y}</b><br>"
-                    "Nivel de Cambio: <b>%{customdata[0]}</b><br>"
+                    "Estado: <b>%{customdata[0]}</b><br>"
                     "--------------------<br>"
-                    "Riesgo Actual: %{customdata[1]:.3f}<br>"
-                    "Riesgo Anterior: %{customdata[2]:.3f}<br>"
-                    "<b>Cambio (Momentum): %{x:+.3f}</b>"
+                    "<b>Velocidad de Riesgo: %{x:+.3f} pts/hr</b><br>"
+                    "Riesgo Actual: %{customdata[1]:.3f}"
                     "<extra></extra>"
                 )
             ))
 
-            # Add a strong central line at zero. This is the visual anchor for the diverging chart.
             fig.add_vline(x=0, line_width=1.5, line_color='black', opacity=0.8)
             
-            # Apply layout settings for a clean, professional, and readable appearance.
             fig.update_layout(
-                title=None, # We use annotations for a more powerful title/subtitle combo.
-                height=max(500, len(df) * 35), # Dynamically adjust height to prevent crowding.
+                title=None, # The title is now part of the markdown text block
+                height=max(500, len(df) * 35),
                 plot_bgcolor='white',
                 showlegend=False,
                 xaxis=dict(
-                    title="← Riesgo Disminuyendo | Riesgo Aumentando →", # Intuitive axis title
+                    title="Tasa de Cambio de Riesgo (puntos por hora)",
                     gridcolor='#e5e5e5',
                     zeroline=False
                 ),
-                yaxis=dict(
-                    showgrid=False,
-                    categoryorder='trace' # Crucial: respects our custom Pandas sort order.
-                ),
-                margin=dict(l=40, r=40, t=80, b=40) # Add top margin for the annotation titles.
-            )
-            
-            # Add a left-aligned, multi-line title and subtitle using annotations for a polished, report-like feel.
-            fig.add_annotation(
-                xref='paper', yref='paper', x=0.0, y=1.07,
-                showarrow=False, align='left',
-                text="<b>Diagnóstico de Momentum de Riesgo por Zona</b>",
-                font=dict(size=20, family="Arial, sans-serif")
-            )
-            fig.add_annotation(
-                xref='paper', yref='paper', x=0.0, y=1.02,
-                showarrow=False, align='left',
-                text="Comparación del riesgo actual vs. el período anterior",
-                font=dict(size=14, color="#666", family="Arial, sans-serif")
+                yaxis=dict(showgrid=False, categoryorder='trace'),
+                margin=dict(l=40, r=40, t=10, b=40) # Smaller top margin as title is now in markdown
             )
             
             st.plotly_chart(fig, use_container_width=True)
 
-        # --- 4. EXCEPTION HANDLING ---
-        # Catch any unexpected errors during plot generation and display a user-friendly message.
         except Exception as e:
-            logger.error(f"Error al graficar el momentum del riesgo: {e}", exc_info=True)
-            st.warning("No se pudo mostrar el gráfico de Tendencia del Riesgo.")
+            logger.error(f"Error al graficar la velocidad del riesgo: {e}", exc_info=True)
+            st.warning("No se pudo mostrar el gráfico de Velocidad del Riesgo.")
 # --- END: NEW METHOD INSERTED ---
             
     def _plot_critical_zone_anatomy(self, kpi_df: pd.DataFrame):
