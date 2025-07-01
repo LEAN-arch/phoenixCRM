@@ -387,21 +387,20 @@ class Dashboard:
         except Exception as e:
             logger.error(f"Error en gráfico de oportunidad de asignación: {e}",exc_info=True); st.warning("No se pudo mostrar el gráfico de Oportunidad de Asignación.")
 # --- START: INSERT THE NEW METHOD HERE (around line 543) ---
-# --- REPLACE your previous plotting function with this complete, self-contained version ---
+# --- REPLACE your previous plotting function with this complete, correctly named version ---
 
-    def _plot_risk_velocity(self, kpi_df: pd.DataFrame):
+    def _plot_risk_momentum(self, kpi_df: pd.DataFrame):
         """
-        [SME VISUALIZATION] Plots a "Risk Velocity" chart with an integrated interpretation guide.
+        [SME VISUALIZATION] Plots a "Risk Velocity" chart under the original function name.
 
-        This function is a self-contained module for visualizing the rate of change of risk.
-        It includes the expert analysis text, resilient data acquisition with a synthetic fallback,
-        rate calculation, and the final Plotly visualization.
+        This function visualizes the rate of change of risk (points/hour) and uses iconic
+        alerts to flag zones that are accelerating into a crisis state. It is designed
+        to be fully resilient, falling back to a synthetic past state if no historical
+        data is loaded.
         """
         try:
             # --- START: INTEGRATED SME ANALYSIS TEXT ---
-            # This markdown block provides the crucial context and interpretation guide for the user,
-            # explaining what the chart means and how to use it for decision-making.
-            # By including it here, the function becomes a complete, reusable component.
+            # This markdown block provides the crucial context and interpretation guide for the user.
             st.markdown("""
             ### **Diagnóstico de Velocidad del Riesgo: Identificando Amenazas Aceleradas**
 
@@ -495,7 +494,7 @@ class Dashboard:
             fig.add_vline(x=0, line_width=1.5, line_color='black', opacity=0.8)
             
             fig.update_layout(
-                title=None, # The title is now part of the markdown text block
+                title=None,
                 height=max(500, len(df) * 35),
                 plot_bgcolor='white',
                 showlegend=False,
@@ -505,14 +504,14 @@ class Dashboard:
                     zeroline=False
                 ),
                 yaxis=dict(showgrid=False, categoryorder='trace'),
-                margin=dict(l=40, r=40, t=10, b=40) # Smaller top margin as title is now in markdown
+                margin=dict(l=40, r=40, t=10, b=40)
             )
             
             st.plotly_chart(fig, use_container_width=True)
 
         except Exception as e:
-            logger.error(f"Error al graficar la velocidad del riesgo: {e}", exc_info=True)
-            st.warning("No se pudo mostrar el gráfico de Velocidad del Riesgo.")
+            logger.error(f"Error al graficar el momentum del riesgo: {e}", exc_info=True)
+            st.warning("No se pudo mostrar el gráfico de Tendencia del Riesgo.")
 # --- END: NEW METHOD INSERTED ---
             
     def _plot_critical_zone_anatomy(self, kpi_df: pd.DataFrame):
